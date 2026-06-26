@@ -44,7 +44,20 @@ class ProductCard extends StatelessWidget {
               ),
               child: Stack(
                 children: [
-                  const Center(child: Icon(Icons.shopping_bag_outlined, size: 40, color: Colors.blue)),
+                  ///
+                  // const Center(child: Icon(Icons.shopping_bag_outlined, size: 40, color: Colors.blue)),
+                  Center(
+                    child: image.isEmpty || image == null
+                        ? const Icon(Icons.shopping_bag_outlined, size: 40, color: Colors.blue)
+                        : Center(
+                            child: Image.network(
+                              image,
+                              fit: BoxFit.contain,
+                              width: 100,
+                              height: 100,
+                            ),
+                          ),
+                  ),
                   PositionBag(
                     top: 10,
                     right: 10,

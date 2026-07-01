@@ -1,10 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ecommerce_app_api_26/features/auth/presentation/screens/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends StatefulWidget {
   final String title;
   final double price;
   final String description;
   final String image;
+  final String? id;
+  final bool? isFavorite;
 
   const ProductCard({
     super.key,
@@ -12,7 +17,108 @@ class ProductCard extends StatelessWidget {
     required this.price,
     required this.description,
     required this.image,
+    this.id,
+    this.isFavorite,
   });
+
+  @override
+  State<ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+ late bool isFavorite=widget.isFavorite??false;
+
+  void toggelFavorite(BuildContext context)async{
+    if(FirebaseAuth.instance.currentUser==null){
+      Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginScreen()));
+    }
+    String userId =FirebaseAuth.instance.currentUser!.uid;
+    DocumentSnapshot snapshot=await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    List<dynamic>favorites=(snapshot.data()as Map)['favorites'];
+   // List<dynamic>favorites=(snapshot.data()as Map)['favorites'].add(id); return map +void  ===>error
+    // List<dynamic>favorites=(snapshot.data()as Map)['favorites']..add(id);return map after that add
+    if(favorites.contains(widget.id)){
+      favorites.remove(widget.id);
+    }else{
+      favorites.add(widget.id);
+    }
+
+    FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'favorites':favorites,
+    });
+  }
+ void addToCart(BuildContext context) async {
+
+   if(FirebaseAuth.instance.currentUser==null){
+     Navigator.push(
+       context,
+       MaterialPageRoute(builder: (_)=>LoginScreen()),
+     );
+     return;
+   }
+
+   String userId=FirebaseAuth.instance.currentUser!.uid;
+
+   DocumentSnapshot snapshot=await FirebaseFirestore.instance
+       .collection("users")
+       .doc(userId)
+       .get();
+
+   List cart=(snapshot.data() as Map)["cart"];
+
+   bool found=false;
+
+   for(var item in cart){
+
+     if(item["productId"]==widget.id){
+
+       item["quantity"]++;
+
+       found=true;
+
+       break;
+     }
+   }
+
+   if(!found){
+
+     cart.add({
+       "productId": widget.id,
+       "name": widget.title,
+       "price": widget.price,
+       "image": widget.image,
+       "quantity": 1,
+     });
+   }
+
+   await FirebaseFirestore.instance
+       .collection("users")
+       .doc(userId)
+       .update({
+
+     "cart":cart,
+
+   });
+   setState(() {});
+
+   // SnackBar
+   ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+   ScaffoldMessenger.of(context).showSnackBar(
+     SnackBar(
+       content: Text(
+         found
+             ? "Already in cart, quantity updated"
+             : "Added to cart successfully",
+       ),
+       duration: const Duration(seconds: 2),
+       behavior: SnackBarBehavior.floating,
+
+     ),
+   );
+
+ }
+
 
   @override
   Widget build(BuildContext context) {
@@ -40,18 +146,24 @@ class ProductCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               child: Stack(
                 children: [
                   ///
                   // const Center(child: Icon(Icons.shopping_bag_outlined, size: 40, color: Colors.blue)),
                   Center(
-                    child: image.isEmpty || image == null
-                        ? const Icon(Icons.shopping_bag_outlined, size: 40, color: Colors.blue)
+                    child: widget.image.isEmpty || widget.image == null
+                        ? const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 40,
+                            color: Colors.blue,
+                          )
                         : Center(
                             child: Image.network(
-                              image,
+                              widget.image,
                               fit: BoxFit.contain,
                               width: 100,
                               height: 100,
@@ -62,12 +174,29 @@ class ProductCard extends StatelessWidget {
                     top: 10,
                     right: 10,
                     child: Container(
+
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
+
                       ),
-                      child: const Icon(Icons.favorite_border, size: 18, color: Colors.red),
+
+                      child: IconButton(
+                          style: IconButton.styleFrom(
+                            padding: EdgeInsets.zero
+                          ),
+                          onPressed: ()
+                            {
+                            toggelFavorite(context);
+                            setState(() {
+                              isFavorite = !isFavorite; ////
+                            });
+
+                          },
+
+                          icon:Icon(isFavorite?Icons.favorite:
+                          Icons.favorite_border, size: 18, color: Colors.red)),
                     ),
                   ),
                 ],
@@ -80,14 +209,17 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  widget.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  description,
+                  widget.description,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -97,20 +229,30 @@ class ProductCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$$price',
+                      '\$${widget.price}',
                       style: const TextStyle(
                         color: Colors.blue,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.circular(8),
+                      GestureDetector(
+                      onTap: (){
+                        addToCart(context);
+
+                        },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 20),
                     ),
                   ],
                 ),

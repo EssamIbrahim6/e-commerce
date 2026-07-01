@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 
@@ -17,9 +18,15 @@ class AuthFirebase {
       password: password,
     );
 
-   
-    await userCredential.user!.updateDisplayName(name);
+    await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+      'email': email,
+      'name': name,
+      'favorites': [],
+      'cart': [],
+    });
 
+    await userCredential.user!.updateDisplayName(name);
+           
     return userCredential;
   }
 

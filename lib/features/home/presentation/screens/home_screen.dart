@@ -123,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         price: product['price'],
                         description: product['description'],
                         image: product['image'],
+                        
                       );
                     },
                   );
